@@ -34,7 +34,7 @@ import sys
 
 from subprocess import call
 
-from pyannote.audio.features.utils import get_wav_duration
+from pyannote.audio.features.utils import get_audio_duration
 
 CONCATENATE = True
 
@@ -49,13 +49,14 @@ def progress(count, total, suffix=''):
     sys.stdout.flush()  # As suggested by Rom Ruben
 
 def file2wav(inp, out):
-    cmd = 'ffmpeg -n -i {inp} -ar 16000 {out}.wav > /dev/null 2> /dev/null'.format(
+    cmd = 'ffmpeg -i {inp} -safe 0 -acodec pcm_s16le -ar 16000 -y {out}.wav> /dev/null 2> /dev/null'.format(
             inp = inp, out = out)
+    print(cmd)
     call(cmd, shell=True)
 
 def list2wav(inp, out):
-    cmd = 'ffmpeg -n -f concat -safe 0 -i {} -c copy -ab 160k -ar 16000 -vn {}.wav  > /dev/null 2> /dev/null'.format(inp, out)
-    # print cmd
+    cmd = 'ffmpeg -f concat -safe 0 -i {} -acodec pcm_s16le -ab 160k -ar 16000 -vn -y {}.wav  > /dev/null 2> /dev/null'.format(inp, out)
+    print(cmd)
     call(cmd, shell=True)
 
 
@@ -95,8 +96,8 @@ def init_database(db_dir, protocols, annotation_dir, path_to_wav):
     desc = {}
     with open(os.path.join(db_dir, 'SPEAKERS.TXT'), 'r') as file:
         content = file.readlines()
-        for c in content:
-            fields = c.translate(None, '\' -()\n').split('|')
+        for line in content:
+            fields = line.translate(str.maketrans(dict.fromkeys('\' -()\n'))).split('|')
             # fields = c.translate('\' -()\n').split('|')
             if fields[0][0] == ';':
                 continue
@@ -153,13 +154,12 @@ def init_database(db_dir, protocols, annotation_dir, path_to_wav):
                             if not os.path.exists(sample_path + '.wav'):
                                 file2wav(flac_sample_path, sample_path)
 
-
                             with open(os.path.join(annotation_dir, 'data', subset + '.mdtm'), 'a') as datafile:
                                 datafile.write('{uri} {channel} {start} {duration} {modality} {confidence} {gender} {label}\n'.format(
                                     uri = os.path.splitext(flac_sample_path)[0].split('/')[-1],
                                     channel = 1,
                                     start = 0,
-                                    duration = get_wav_duration(sample_path + '.wav'),
+                                    duration = get_audio_duration(sample_path + '.wav'),
                                     modality = 'speaker',
                                     confidence = 'NA',
                                     gender = d['gender'],
@@ -173,8 +173,8 @@ def init_database(db_dir, protocols, annotation_dir, path_to_wav):
                         for f in files:
                             flac_sample_path = os.path.join(books_sample_path, f)
                             if flac_sample_path.endswith(".flac"):
-                                file2wav(flac_sample_path, os.path.splitext(flac_sample_path)[0])
-                                file.write("file \'{}\'\n".format(os.path.splitext(flac_sample_path)[0]+'.wav'))
+                                #file2wav(flac_sample_path, os.path.splitext(flac_sample_path)[0])
+                                file.write("file \'{}\'\n".format(flac_sample_path))
 
                     # sample_path = wav_path_template.format(
                     #     uri = '{}-{}-{}'.format(c, d['client_id'], b),
@@ -190,13 +190,12 @@ def init_database(db_dir, protocols, annotation_dir, path_to_wav):
                         list2wav(fname, sample_path)
                     os.remove(fname)
 
-
                     with open(os.path.join(annotation_dir, 'data', subset + '.mdtm'), 'a') as datafile:
                         datafile.write('{uri} {channel} {start} {duration} {modality} {confidence} {gender} {label}\n'.format(
                             uri = sample_path.split('/')[-1],
                             channel = 1,
                             start = 0,
-                            duration = get_wav_duration(sample_path + '.wav'),
+                            duration = get_audio_duration({'audio': sample_path + '.wav'}),
                             modality = 'speaker',
                             confidence = 'NA',
                             gender = d['gender'],
@@ -207,4 +206,7 @@ def init_database(db_dir, protocols, annotation_dir, path_to_wav):
 
 if __name__ == '__main__':
     init_database('/path/to/corpus/LibriSpeech', ['dev-clean', 'test-clean', 'train-clean'], '/path/to/cloned/pyannote-db-librispeech/LibriSpeech', '/path/to/corpus/LibriSpeech/wav')
-    
+    # for the 'other' set of data in the database
+    #init_database('/path/to/corpus/LibriSpeech', ['train-other-500', 'dev-other', 'test-other'], '/path/to/cloned/pyannote-db-librispeech/LibriSpeech', '/path/to/corpus/LibriSpeech/wav')
+   
+

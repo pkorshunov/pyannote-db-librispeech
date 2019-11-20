@@ -37,6 +37,7 @@ import os.path as op
 from pyannote.database import Database
 from pyannote.database.protocol import SpeakerDiarizationProtocol, SpeakerRecognitionProtocol
 from pyannote.parser import MDTMParser
+from pyannote.core import Timeline
 
 # this protocol defines a speaker diarization protocol: as such, a few methods
 # needs to be defined: trn_iter, dev_iter, and tst_iter.
@@ -63,9 +64,12 @@ class LibriSpeechSpeakerRecognitionProtocol(SpeakerDiarizationProtocol):
             current_file = {
                 'database': 'LibriSpeech',
                 'uri': uri,
-                'annotation': annotation}
-            yield current_file
+                'annotation': annotation,
+                # annotated part as pyannote.core.Timeline instance
+                'annotated': Timeline(uri=uri, segments=[annotation.get_timeline().extent()])
+            }
 
+            yield current_file
 
 
 
@@ -108,3 +112,4 @@ class LibriSpeech(Database):
             'SpeakerDiarization', 'LibriSpeechClean', LibriSpeechClean)
         self.register_protocol(
             'SpeakerDiarization', 'LibriSpeechOther', LibriSpeechOther)
+
